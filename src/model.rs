@@ -11,6 +11,7 @@ use regex::Regex;
 use timer::{Guard as TimerGuard, Timer};
 use tuikit::prelude::{Event as TermEvent, *};
 
+use crate::backend;
 use crate::engine::factory::{AndOrEngineFactory, ExactOrFuzzyEngineFactory, RegexEngineFactory};
 use crate::event::{Event, EventHandler, EventReceiver, EventSender};
 use crate::header::Header;
@@ -38,7 +39,10 @@ lazy_static! {
     static ref RE_FIELDS: Regex = Regex::new(r"\\?(\{-?[0-9.,q]*?})").unwrap();
 }
 
-pub struct Model {
+pub struct Model<B>
+where
+    B: backend::Backend,
+{
     reader: Reader,
     query: Query,
     selection: Selection,
@@ -48,7 +52,7 @@ pub struct Model {
     regex_matcher: Matcher,
     matcher: Matcher,
 
-    term: Arc<Term>,
+    term: Arc<backend::Term<B>>,
 
     item_pool: Arc<ItemPool>,
 
@@ -85,8 +89,14 @@ pub struct Model {
     next_idx_to_append: u32, // for AppendAndSelect action
 }
 
-impl Model {
-    pub fn new(rx: EventReceiver, tx: EventSender, reader: Reader, term: Arc<Term>, options: &SkimOptions) -> Self {
+impl<B: backend::Backend> Model<B> {
+    pub fn new(
+        rx: EventReceiver,
+        tx: EventSender,
+        reader: Reader,
+        term: Arc<backend::Term<B>>,
+        options: &SkimOptions,
+    ) -> Self {
         let default_command = match env::var("SKIM_DEFAULT_COMMAND").as_ref().map(String::as_ref) {
             Ok("") | Err(_) => "find .".to_owned(),
             Ok(val) => val.to_owned(),

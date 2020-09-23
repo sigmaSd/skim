@@ -11,7 +11,9 @@ use std::sync::Arc;
 use std::thread;
 
 use crossbeam::channel::{Receiver, Sender};
-use tuikit::prelude::{Event as TermEvent, *};
+//use tuikit::prelude::{Event as TermEvent, *};
+use backend::{TermHeight, TermOptions};
+use tuikit::event::Event as TermEvent;
 
 pub use crate::ansi::AnsiString;
 pub use crate::engine::fuzzy::FuzzyAlgorithm;
@@ -190,6 +192,8 @@ pub type SkimItemReceiver = Receiver<Arc<dyn SkimItem>>;
 
 pub struct Skim {}
 
+mod backend;
+
 impl Skim {
     pub fn run_with(options: &SkimOptions, source: Option<SkimItemReceiver>) -> Option<SkimOutput> {
         let min_height = options
@@ -201,10 +205,14 @@ impl Skim {
             .map(Skim::parse_height_string)
             .expect("height should have default values");
 
+        //let backend = backend::TuikitBackend::new(std::io::stdout());
+        let backend = backend::CrosstermBackend::new(std::io::stdout());
         let (tx, rx): (EventSender, EventReceiver) = channel();
-        let term = Arc::new(Term::with_options(TermOptions::default().min_height(min_height).height(height)).unwrap());
+        let term = Arc::new(
+            backend::Term::with_options(backend, TermOptions::default().min_height(min_height).height(height)).unwrap(),
+        );
         if !options.no_mouse {
-            let _ = term.enable_mouse_support();
+            //TODO:            let _ = term.enable_mouse_support();
         }
 
         //------------------------------------------------------------------------------
